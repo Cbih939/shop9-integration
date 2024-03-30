@@ -1,0 +1,15 @@
+/* Conteúdo de admin-style.css */
+.shop9-logo {
+    max-height: 60px;
+    margin-bottom: 20px;
+}
+
+.shop9-settings-page {
+    background: #f1f1f1;
+    padding: 20px;
+    border-radius: 5px;
+}
+
+.shop9-settings-field {
+    margin-bottom: 20px;
+}
