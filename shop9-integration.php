@@ -2,7 +2,7 @@
 /**
  * Plugin Name: Shop 9 Integration Cbih
  * Description: Integra o Shop 9 com a loja WordPress, permitindo configurar clientID e clientSecret pelo painel.
- * Version: 1.7
+ * Version: 1.8
  * Author: Seimon Athayde
  */
 
@@ -171,27 +171,49 @@ class Shop9Integration {
     }
 
     public function pluginSettingsPage() {
+        $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'activate_plugin';
         ?>
-        <div class="wrap shop9-settings-page">
-            <img src="<?php echo esc_url(plugin_dir_url(__FILE__) . 'assets/logo.png'); ?>" class="shop9-logo">
-            <h1>Shop 9 Integration</h1>
-            <form method="post" action="options.php" id="shop9-settings-form">
-                <?php
-                settings_fields('shop9_integration');
-                do_settings_sections('shop9-integration');
-                $serie = get_option('shop9_test_serie');
-                $codfilial = get_option('shop9_test_codfilial');
-                if ($serie && $codfilial) {
-                    if ($this->authenticateForTest($serie, $codfilial)) {
-                        echo '<p style="color:green;">Autenticado com sucesso para teste.</p>';
-                    } else {
-                        echo '<p style="color:red;">Erro ao autenticar para teste. Verifique suas credenciais.</p>';
-                    }
-                }
-                submit_button('Salvar Configurações');
-                ?>
-            </form>
+        <div class="wrap">
+            <h2>Shop 9 Integration</h2>
+            <h2 class="nav-tab-wrapper">
+                <a href="?page=shop9-integration&tab=activate_plugin" class="nav-tab <?php echo $active_tab == 'activate_plugin' ? 'nav-tab-active' : ''; ?>">Ativar o Plugin</a>
+                <a href="?page=shop9-integration&tab=settings" class="nav-tab <?php echo $active_tab == 'settings' ? 'nav-tab-active' : ''; ?>">Configurações</a>
+            </h2>
+    
+            <?php
+            if ($active_tab == 'activate_plugin') {
+                // Conteúdo da aba Ativar o Plugin aqui
+                $this->activatePluginTabContent();
+            } else {
+                // Conteúdo da aba Configurações aqui
+                $this->settingsTabContent();
+            }
+            ?>
         </div>
+        <?php
+    }
+
+    private function activatePluginTabContent() {
+        ?>
+        <form method="post" action="options.php">
+            <?php
+            settings_fields('shop9_integration_activate');
+            do_settings_sections('shop9_integration_activate');
+            submit_button('Ativar Plugin');
+            ?>
+        </form>
+        <?php
+    }
+    
+    private function settingsTabContent() {
+        ?>
+        <form method="post" action="options.php">
+            <?php
+            settings_fields('shop9_integration_settings');
+            do_settings_sections('shop9_integration_settings');
+            submit_button();
+            ?>
+        </form>
         <?php
     }
 
