@@ -1,570 +1,240 @@
 <?php
 /**
- * Plugin Name: Shop 9 Integration Cbih
+ * Plugin Name: Shop 9 Integration
  * Description: Integra o Shop 9 com a loja WordPress, permitindo configurar clientID e clientSecret pelo painel.
- * Version: 1.8
+ * Version: 1.9
  * Author: Seimon Athayde
+ * Tested up to: 5.9
+ * Requires at least: 5.6
+ * Requires PHP: 7.0
  */
 
-if (!defined('ABSPATH')) exit;
+// Adiciona o menu de configuração e teste no painel administrativo
+function meu_plugin_shop_control9_menu() {
+    add_menu_page(
+        'Configurações Shop Control 9',
+        'Shop Control 9',
+        'manage_options',
+        'meu-plugin-shop-control9',
+        'meu_plugin_shop_control9_pagina_configuracao',
+        'dashicons-admin-settings', // Ícone da página
+        20 // Prioridade do menu
+    );
 
-class Shop9Integration {
-    private $apiUrl;
-    private $accessToken;
-    private $clientID;
-    private $clientSecret;
+    add_submenu_page(
+        'meu-plugin-shop-control9',
+        'Teste de Integração',
+        'Teste de Integração',
+        'manage_options',
+        'meu-plugin-shop-control9-teste',
+        'meu_plugin_shop_control9_pagina_teste'
+    );
+}
+add_action('admin_menu', 'meu_plugin_shop_control9_menu');
 
-    public function __construct() {
-        $this->apiUrl = get_option('shop9_api_url', '');
-        $this->accessToken = '';
-        $this->clientID = get_option('shop9_client_id', '');
-        $this->clientSecret = get_option('shop9_client_secret', '');
-
-        add_action('admin_menu', [$this, 'addPluginPage']);
-        add_action('admin_init', [$this, 'registerSettings']);
-        add_action('wp_ajax_sync_products', [$this, 'syncProducts']);
-        add_action('wp_ajax_request_auxiliar_cores', [$this, 'requestAuxiliarCores']);
-        add_action('wp_ajax_request_clientes', [$this, 'requestClientes']);
-        add_action('wp_ajax_cadastrar_cliente', [$this, 'cadastrarCliente']);
-        add_action('wp_ajax_cadastrar_contatos_cliente', [$this, 'cadastrarContatosCliente']);
-        add_action('admin_enqueue_scripts', [$this, 'enqueueAdminStyles']);
-        add_action('admin_enqueue_scripts', [$this, 'enqueueAdminScripts']);
-    }
-
-    public function addPluginPage() {
-        add_menu_page(
-            'Shop 9 Integration',
-            'Shop 9 Integration',
-            'manage_options',
-            'shop9-integration',
-            [$this, 'pluginSettingsPage'],
-            'dashicons-admin-generic',
-            6
-        );
-    }
-
-    public function registerSettings() {
-        register_setting('shop9_integration', 'shop9_client_id');
-        register_setting('shop9_integration', 'shop9_client_secret');
-        register_setting('shop9_integration', 'shop9_test_serie');
-        register_setting('shop9_integration', 'shop9_test_codfilial');
-        register_setting('shop9_integration', 'shop9_api_url');
-        register_setting('shop9_integration', 'shop9_test_service_url');
-        register_setting('shop9_integration', 'shop9_test_service_port');
-        register_setting('shop9_integration', 'shop9_test_service_password');
-
-        add_settings_section(
-            'shop9_integration_section',
-            'Configurações do Shop 9',
-            null,
-            'shop9-integration'
-        );
-
-        add_settings_field(
-            'shop9_client_id',
-            'Client ID',
-            [$this, 'settingsFieldHTML'],
-            'shop9-integration',
-            'shop9_integration_section',
-            [
-                'label_for' => 'shop9_client_id',
-                'type' => 'text',
-                'name' => 'shop9_client_id'
-            ]
-        );
-
-        add_settings_field(
-            'shop9_client_secret',
-            'Client Secret',
-            [$this, 'settingsFieldHTML'],
-            'shop9-integration',
-            'shop9_integration_section',
-            [
-                'label_for' => 'shop9_client_secret',
-                'type' => 'text',
-                'name' => 'shop9_client_secret'
-            ]
-        );
-
-        add_settings_field(
-            'shop9_test_serie',
-            'Número de Série (Teste)',
-            [$this, 'settingsFieldHTML'],
-            'shop9-integration',
-            'shop9_integration_section',
-            [
-                'label_for' => 'shop9_test_serie',
-                'type' => 'text',
-                'name' => 'shop9_test_serie'
-            ]
-        );
-
-        add_settings_field(
-            'shop9_test_codfilial',
-            'Código da Filial (Teste)',
-            [$this, 'settingsFieldHTML'],
-            'shop9-integration',
-            'shop9_integration_section',
-            [
-                'label_for' => 'shop9_test_codfilial',
-                'type' => 'text',
-                'name' => 'shop9_test_codfilial'
-            ]
-        );
-
-        add_settings_field(
-            'shop9_api_url',
-            'URL da API do Shop 9',
-            [$this, 'settingsFieldHTML'],
-            'shop9-integration',
-            'shop9_integration_section',
-            [
-                'label_for' => 'shop9_api_url',
-                'type' => 'text',
-                'name' => 'shop9_api_url'
-            ]
-        );
-
-        add_settings_field(
-            'shop9_test_service_url',
-            'URL do Serviço',
-            [$this, 'settingsFieldHTML'],
-            'shop9-integration',
-            'shop9_integration_section',
-            [
-                'label_for' => 'shop9_test_service_url',
-                'type' => 'text',
-                'name' => 'shop9_test_service_url'
-            ]
-        );
-
-        add_settings_field(
-            'shop9_test_service_port',
-            'Porta',
-            [$this, 'settingsFieldHTML'],
-            'shop9-integration',
-            'shop9_integration_section',
-            [
-                'label_for' => 'shop9_test_service_port',
-                'type' => 'text',
-                'name' => 'shop9_test_service_port'
-            ]
-        );
-
-        add_settings_field(
-            'shop9_test_service_password',
-            'Senha',
-            [$this, 'settingsFieldHTML'],
-            'shop9-integration',
-            'shop9_integration_section',
-            [
-                'label_for' => 'shop9_test_service_password',
-                'type' => 'password',
-                'name' => 'shop9_test_service_password'
-            ]
-        );
-    }
-
-    public function settingsFieldHTML($args) {
-        $option = get_option($args['name']);
-        echo "<input type='{$args['type']}' id='{$args['name']}' name='{$args['name']}' value='" . esc_attr($option) . "' />";
-    }
-
-    public function pluginSettingsPage() {
-        $active_tab = isset($_GET['tab']) ? $_GET['tab'] : 'activate_plugin';
-        ?>
-        <div class="wrap">
-            <h2>Shop 9 Integration</h2>
-            <h2 class="nav-tab-wrapper">
-                <a href="?page=shop9-integration&tab=activate_plugin" class="nav-tab <?php echo $active_tab == 'activate_plugin' ? 'nav-tab-active' : ''; ?>">Ativar o Plugin</a>
-                <a href="?page=shop9-integration&tab=settings" class="nav-tab <?php echo $active_tab == 'settings' ? 'nav-tab-active' : ''; ?>">Configurações</a>
-            </h2>
-    
-            <?php
-            if ($active_tab == 'activate_plugin') {
-                // Conteúdo da aba Ativar o Plugin aqui
-                $this->activatePluginTabContent();
-            } else {
-                // Conteúdo da aba Configurações aqui
-                $this->settingsTabContent();
+// Função para exibir a página de teste de integração
+function meu_plugin_shop_control9_pagina_teste() {
+    ?>
+    <div class="wrap">
+        <h2>Teste de Integração com Shop Control 9</h2>
+        <p>Aqui você pode executar testes para verificar a integração com o Shop Control 9.</p>
+        <p>Insira os parâmetros necessários e clique em "Executar Teste".</p>
+        <form method="post">
+            <input type="hidden" name="meu_plugin_shop_control9_teste_nonce" value="<?php echo wp_create_nonce('meu_plugin_shop_control9_teste_nonce'); ?>">
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="url_servico">URL do Serviço</label></th>
+                    <td><input type="text" id="url_servico" name="url_servico"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="porta">Porta</label></th>
+                    <td><input type="text" id="porta" name="porta"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="senha">Senha</label></th>
+                    <td><input type="text" id="senha" name="senha"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="numero_serie_teste">Número de Série para Homologação</label></th>
+                    <td><input type="text" id="numero_serie_teste" name="numero_serie_teste"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="codigo_filial_teste">Código da Filial para Homologação</label></th>
+                    <td><input type="text" id="codigo_filial_teste" name="codigo_filial_teste"></td>
+                </tr>
+            </table>
+            <?php submit_button('Executar Teste', 'primary', 'executar_teste', true); ?>
+        </form>
+        <?php
+        if (isset($_POST['executar_teste'])) {
+            // Verifica o nonce
+            if (!isset($_POST['meu_plugin_shop_control9_teste_nonce']) || !wp_verify_nonce($_POST['meu_plugin_shop_control9_teste_nonce'], 'meu_plugin_shop_control9_teste_nonce')) {
+                die('Erro de segurança. Por favor, tente novamente.');
             }
-            ?>
-        </div>
-        <?php
-    }
 
-    private function activatePluginTabContent() {
-        ?>
-        <form method="post" action="options.php">
-            <?php
-            settings_fields('shop9_integration_activate');
-            do_settings_sections('shop9_integration_activate');
-            submit_button('Ativar Plugin');
-            ?>
-        </form>
-        <?php
-    }
-    
-    private function settingsTabContent() {
-        ?>
-        <form method="post" action="options.php">
-            <?php
-            settings_fields('shop9_integration_settings');
-            do_settings_sections('shop9_integration_settings');
-            submit_button();
-            ?>
-        </form>
-        <?php
-    }
-
-    public function authenticateForTest($serie, $codfilial) {
-        $apiUrl = $this->apiUrl;
-        $serviceUrl = get_option('shop9_test_service_url');
-        $servicePort = get_option('shop9_test_service_port');
-        $servicePassword = get_option('shop9_test_service_password');
-
-        $response = wp_remote_get("$apiUrl/auth/?serie=$serie&codfilial=$codfilial", [
-            'headers' => [
-                'Signature' => '-1',
-                'cache-control' => 'no-cache'
-            ]
-        ]);
-
-        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) != 200) {
-            return false;
-        }
-
-        $body = wp_remote_retrieve_body($response);
-        $data = json_decode($body, true);
-        if (!isset($data['token'])) {
-            return false;
-        }
-
-        $this->accessToken = sanitize_text_field($data['token']);
-        return true;
-    }
-
-    public function enqueueAdminStyles($hook) {
-        if($hook != 'toplevel_page_shop9-integration') {
-            return;
-        }
-
-        wp_enqueue_style('shop9_admin_styles', plugin_dir_url(__FILE__) . 'assets/css/admin-style.css');
-    }
-
-    public function enqueueAdminScripts($hook) {
-        if($hook != 'toplevel_page_shop9-integration') {
-            return;
-        }
-
-        wp_enqueue_script('shop9_admin_script', plugin_dir_url(__FILE__) . 'assets/js/admin.js', array('jquery'), '1.0', true);
-    }
-
-    public function syncProducts() {
-        check_ajax_referer('shop9_secure_nonce', 'security');
-    
-        if (!$this->authenticate()) {
-            wp_send_json_error('Falha na autenticação com a API do Shop 9.');
-            return;
-        }
-    
-        // Obtém os produtos da loja WordPress
-        $products = $this->getProductsFromWordPress();
-    
-        // Verifica se existem produtos para sincronizar
-        if (!empty($products)) {
-            // Loop através dos produtos e sincronize com o Shop 9
-            foreach ($products as $product) {
-                $sync_result = $this->syncProductWithShop9($product);
-                if (!$sync_result) {
-                    // Se houver erro ao sincronizar um produto, envie uma mensagem de erro e pare a sincronização
-                    wp_send_json_error('Erro ao sincronizar produtos com o Shop 9.');
+            // Verifica se todos os parâmetros estão presentes
+            $parametros_necessarios = array(
+                'url_servico',
+                'porta',
+                'senha',
+                'numero_serie_teste',
+                'codigo_filial_teste'
+            );
+            foreach ($parametros_necessarios as $parametro) {
+                if (empty($_POST[$parametro])) {
+                    echo '<p>O parâmetro "' . $parametro . '" é obrigatório.</p>';
                     return;
                 }
             }
-        }
-    
-        // Envie uma mensagem de sucesso se a sincronização for concluída sem erros
-        wp_send_json_success('Sincronização de produtos completada com sucesso.');
-    }
-    
-    private function syncProductWithShop9($product) {
-        // Verifica se o produto tem todas as informações necessárias
-        if (empty($product['id']) || empty($product['name']) || empty($product['price'])) {
-            // Se faltar alguma informação essencial do produto, retorne falso
-            return false;
-        }
-    
-        // Detalhes do produto para sincronização
-        $product_id = $product['id'];
-        $product_name = $product['name'];
-        $product_price = $product['price'];
-    
-        // Endpoint da API do Shop 9 para sincronização de produto
-        $endpoint = '/products/sync';
-    
-        // Dados do produto para enviar para o Shop 9
-        $data = array(
-            'product_id' => $product_id,
-            'product_name' => $product_name,
-            'product_price' => $product_price,
-            // Adicione outros detalhes do produto, conforme necessário
-        );
-    
-        // Faz a solicitação POST para sincronizar o produto com o Shop 9
-        $response = $this->makePostRequest($endpoint, $data);
-    
-        // Verifica se a solicitação foi bem-sucedida
-        if ($response && isset($response['success']) && $response['success'] === true) {
-            // Se a sincronização for bem-sucedida, retorne verdadeiro
-            return true;
-        } else {
-            // Se houver um erro na sincronização, retorne falso
-            return false;
-        }
-    }
-    
-        // Exemplo simplificado de como sincronizar um produto com o Shop 9
-        $product_id = $product['id'];
-        $product_name = $product['name'];
-        $product_price = $product['price'];
-    
-        // Aqui você enviará os detalhes do produto para o Shop 9
-        // Exemplo fictício:
-        $response = $this->makePostRequest('/sync/product', array(
-            'product_id' => $product_id,
-            'product_name' => $product_name,
-            'product_price' => $product_price,
-            // Adicione outros detalhes do produto, conforme necessário
-        ));
-    
-        // Verifica se a solicitação foi bem-sucedida
-        if ($response) {
-            // Se a sincronização for bem-sucedida, retorne verdadeiro
-            return true;
-        } else {
-            // Se houver um erro na sincronização, retorne falso
-            return false;
-        }
-    }
 
-private function getProductsFromWordPress() {
-    $args = array(
-        'post_type' => 'product', // Tipo de postagem para produtos
-        'post_status' => 'publish', // Apenas produtos publicados
-        'posts_per_page' => -1, // Todos os produtos
-    );
+            // Conecta-se ao banco de dados do Shop Control 9
+            $conectado = conectar_shop_control9($_POST['url_servico'], $_POST['porta'], $_POST['senha'], $_POST['numero_serie_teste'], $_POST['codigo_filial_teste']);
 
-    // Consulta para obter os produtos
-    $products_query = new WP_Query($args);
-
-    // Inicializa um array para armazenar os produtos
-    $products = array();
-
-    // Verifica se existem produtos
-    if ($products_query->have_posts()) {
-        // Loop através dos resultados da consulta
-        while ($products_query->have_posts()) {
-            $products_query->the_post();
-            
-            // Obtém os detalhes do produto
-            $product_id = get_the_ID();
-            $product_name = get_the_title();
-            $product_price = get_post_meta($product_id, '_price', true); // Preço do produto (exemplo)
-
-            // Crie um array com os detalhes do produto e adicione à lista de produtos
-            $product_data = array(
-                'id' => $product_id,
-                'name' => $product_name,
-                'price' => $product_price,
-                // Adicionar outros detalhes do produto, se necessário
-            );
-            $products[] = $product_data;
-        }
-
-        // Restaura os dados originais do post
-        wp_reset_postdata();
-    }
-
-    // Retorna a lista de produtos
-    return $products;
-}
-
-    // Exemplo básico:
-    $args = array(
-        'post_type' => 'product',
-        'post_status' => 'publish',
-        'posts_per_page' => -1,
-    );
-
-    $products = get_posts($args);
-    
-    // Retorna os produtos obtidos
-    return $products;
-
-private function syncProductsWithShop9($products) {
-    // Implementar a função para sincronizar os produtos com o Shop 9
-    
-    // Exemplo básico:
-    foreach ($products as $product) {
-        // Obtém os dados do produto
-        $product_id = $product->ID;
-        $product_name = $product->post_title;
-        $product_price = get_post_meta($product_id, '_price', true); // Exemplo de obtenção do preço
-        
-        // Função para sincronizar o produto com o Shop 9
-        // Por exemplo, enviar uma solicitação POST para criar ou atualizar o produto no Shop 9
-        
-        // Se ocorrer um erro durante a sincronização, retorne false
-        // Se todos os produtos forem sincronizados com sucesso, retorne true
-    }
-    
-    // Retorna true se a sincronização for bem-sucedida, caso contrário, retorna false
-    return true;
-}
-
-        wp_send_json_success('Sincronização de produtos completada com sucesso.');
-
-    public function requestAuxiliarCores() {
-        $response = $this->makeRequest('/aux/cores');
-        if ($response) {
-            wp_send_json_success($response);
-        } else {
-            wp_send_json_error('Erro ao solicitar cores auxiliares.');
-        }
-    }
-
-    public function requestClientes() {
-        $page = isset($_GET['page']) ? intval($_GET['page']) : 1;
-        $response = $this->makeRequest("/clientes/$page");
-        if ($response) {
-            wp_send_json_success($response);
-        } else {
-            wp_send_json_error('Erro ao solicitar clientes.');
-        }
-    }
-
-    public function cadastrarCliente() {
-        check_ajax_referer('shop9_secure_nonce', 'security');
-
-        $data = json_decode(stripslashes($_POST['data']), true);
-        $response = $this->makePostRequest('/clientes/', $data);
-
-        if ($response) {
-            wp_send_json_success($response);
-        } else {
-            wp_send_json_error('Erro ao cadastrar cliente.');
-        }
-    }
-
-    public function cadastrarContatosCliente() {
-        check_ajax_referer('shop9_secure_nonce', 'security');
-
-        $codigoCliente = intval($_POST['codigo_cliente']);
-        $data = json_decode(stripslashes($_POST['data']), true);
-        $response = $this->makePostRequest("/clientes/contatos/$codigoCliente", $data);
-
-        if ($response) {
-            wp_send_json_success($response);
-        } else {
-            wp_send_json_error('Erro ao cadastrar contatos do cliente.');
-        }
-    }
-
-    private function makeRequest($endpoint) {
-        $apiUrl = $this->apiUrl;
-        $codFilial = '1';
-        $authorization = 'Token ' . base64_encode($this->clientID . ':' . $this->clientSecret);
-        $signature = 'NzH0v3JYuH8SeChtW/z7odowwjmFKekVx5xN25YeC0c=';
-        $timestamp = '1552938274';
-
-        $response = wp_remote_get("$apiUrl$endpoint", [
-            'headers' => [
-                'CodFilial' => $codFilial,
-                'Authorization' => $authorization,
-                'Signature' => $signature,
-                'Timestamp' => $timestamp,
-                'cache-control' => 'no-cache',
-                'Accept' => '*/*'
-            ]
-        ]);
-
-        if (is_wp_error($response) || wp_remote_retrieve_response_code($response) != 200) {
-            return false;
-        }
-
-        $body = wp_remote_retrieve_body($response);
-        return json_decode($body, true);
-    }
-
-    private function makePostRequest($endpoint, $data) {
-        $apiUrl = $this->apiUrl;
-        $codFilial = '1';
-        $authorization = 'Token ' . base64_encode($this->clientID . ':' . $this->clientSecret);
-        $signature = '4ogNs3XU6vKeEw+ul9tiHDiAS5sFC0+lxzorSOjosIA=';
-        $timestamp = time();
-        $contentLength = strlen(json_encode($data));
-
-        $response = wp_remote_post("$apiUrl$endpoint", [
-            'headers' => [
-                'CodFilial' => $codFilial,
-                'Authorization' => $authorization,
-                'Signature' => $signature,
-                'Timestamp' => $timestamp,
-                'Content-Type' => 'application/json; charset=utf-8',
-                'Content-Length' => $contentLength
-            ],
-            'body' => json_encode($data)
-        ]);
-
-        if (is_array($response) && !is_wp_error($response)) {
-            $body = wp_remote_retrieve_body($response);
-            return json_decode($body, true);
-        }
-
-        return null;
-    }
-
-    private function authenticate() {
-        // Verifica se o accessToken está presente e não está vazio
-        if (!empty($this->accessToken)) {
-            // Consulta a API do Shop 9 para validar o token de acesso
-            $validation_response = $this->validateAccessToken();
-    
-            if ($validation_response && isset($validation_response['valid']) && $validation_response['valid'] === true) {
-                // O token de acesso ainda é válido
-                return true;
+            if ($conectado) {
+                // Execute os testes aqui
+                echo '<p>Teste executado com sucesso!</p>';
             } else {
-                // O token de acesso expirou ou é inválido
-                // Futuramente será implementado uma função para renovar o token
-                // Por enquanto, retornamos falso
-                return false;
+                echo '<p>Falha ao conectar ao banco de dados do Shop Control 9. Verifique suas configurações.</p>';
             }
-        } else {
-            // Se o accessToken estiver ausente ou vazio, retorne false
-            return false;
         }
-    }
-    
-    private function validateAccessToken() {
-        // Faz uma solicitação à API do Shop 9 para validar o token de acesso
-        $apiUrl = $this->apiUrl;
-    
-        $response = wp_remote_get("$apiUrl/validate_token", [
-            'headers' => [
-                'Authorization' => 'Bearer ' . $this->accessToken,
-                'cache-control' => 'no-cache'
-            ]
-        ]);
-    
-        if (!is_wp_error($response) && wp_remote_retrieve_response_code($response) === 200) {
-            $body = wp_remote_retrieve_body($response);
-            return json_decode($body, true);
-        } else {
-            // Se houver erro na solicitação, ou o código de resposta não for 200,
-            // assumimos que o token de acesso é inválido
-            return false;
+        ?>
+    </div>
+    <?php
+}
+
+// Função para conectar ao banco de dados do Shop Control 9
+function conectar_shop_control9($url_servico, $porta, $senha, $numero_serie_teste, $codigo_filial_teste) {
+// Adiciona o endpoint personalizado para receber as informações do Shop Control 9 via JSON
+add_action('rest_api_init', function () {
+    register_rest_route('meu-plugin-shop-control9/v1', '/dados-shop-control9', array(
+        'methods' => 'POST',
+        'callback' => 'meu_plugin_shop_control9_processar_dados',
+        'permission_callback' => function () {
+            return current_user_can('manage_options');
         }
+    ));
+});
+}
+
+// Função para processar os dados recebidos do Shop Control 9
+function meu_plugin_shop_control9_processar_dados(WP_REST_Request $request) {
+    // Obter os parâmetros da solicitação
+    $dados = $request->get_json_params();
+
+    // Concatenar os campos Método HTTP, Timestamp e Conteúdo BODY (se houver)
+    $metodo_http = strtolower($request->get_method());
+    $timestamp = time();
+    $conteudo_body = isset($dados['body']) ? $dados['body'] : '';
+    $conteudo_concatenado = $metodo_http . $timestamp . $conteudo_body;
+
+    // Encriptar os dados concatenados com o algoritmo HMAC SHA256 utilizando a senha informada nas configurações do módulo
+    $senha = get_option('meu_plugin_shop_control9_senha'); // Obtenha a senha das configurações do plugin
+    $hash_hmac = hash_hmac('sha256', $conteudo_concatenado, $senha);
+
+    // Passar os dados encriptados para Base64
+    $conteudo_base64 = base64_encode($hash_hmac);
+
+    // Obter outros dados necessários
+    $cod_filial = $dados['cod_filial'];
+    $token_autenticacao = get_option('meu_plugin_shop_control9_token'); // Obtenha o token de autenticação das configurações do plugin
+
+    // Montar o cabeçalho da requisição
+    $cabecalho = array(
+        'CodFilial' => $cod_filial,
+        'Authorization' => 'Token ' . $token_autenticacao,
+        'Timestamp' => $timestamp
+    );
+
+    // Processar os dados recebidos e retornar a resposta no formato JSON
+    $resposta = array(
+        'sucesso' => true,
+        'mensagem' => 'Dados processados com sucesso.',
+        'tipo' => 'informacao',
+        'complementoTipo' => '',
+        'statusCode' => 200,
+        'dados' => $cabecalho // Retorne os dados processados ou quaisquer outros dados que deseja fornecer ao WooCommerce
+    );
+
+    return new WP_REST_Response($resposta, 200);
+}
+
+    // Função para exibir a página de configuração do plugin
+function meu_plugin_shop_control9_pagina_configuracao() {
+    // Verifica se o usuário tem permissão para acessar a página
+    if (!current_user_can('manage_options')) {
+        wp_die('Você não tem permissão para acessar esta página.');
     }
 
-new Shop9Integration();
+    // Verifica se o formulário foi enviado
+    if (isset($_POST['submit'])) {
+        // Salvar configurações
+        update_option('shop_control9_client_id', $_POST['client_id']);
+        update_option('shop_control9_client_secret', $_POST['client_secret']);
+        update_option('shop_control9_numero_serie_teste', $_POST['numero_serie_teste']);
+        update_option('shop_control9_codigo_filial_teste', $_POST['codigo_filial_teste']);
+        update_option('shop_control9_url_api', $_POST['url_api']);
+        update_option('shop_control9_porta', $_POST['porta']);
+        update_option('shop_control9_senha', $_POST['senha']);
+    }
+
+    // Recupera as configurações salvas
+    $client_id = get_option('shop_control9_client_id');
+    $client_secret = get_option('shop_control9_client_secret');
+    $numero_serie_teste = get_option('shop_control9_numero_serie_teste');
+    $codigo_filial_teste = get_option('shop_control9_codigo_filial_teste');
+    $url_api = get_option('shop_control9_url_api');
+    $porta = get_option('shop_control9_porta');
+    $senha = get_option('shop_control9_senha');
+    ?>
+    <div class="wrap">
+        <div class="meu-plugin-shop-control9-logo">
+            <img src="<?php echo plugins_url('logo.png', __FILE__); ?>" alt="Logo do plugin">
+        </div>
+        <h2>Configurações Shop Control 9</h2>
+        <form method="post">
+            <table class="form-table">
+                <tr>
+                    <th scope="row"><label for="client_id">Cliente ID</label></th>
+                    <td><input type="text" id="client_id" name="client_id" value="<?php echo esc_attr($client_id); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="client_secret">Cliente Secret</label></th>
+                    <td><input type="text" id="client_secret" name="client_secret" value="<?php echo esc_attr($client_secret); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="numero_serie_teste">Número de Série Teste</label></th>
+                    <td><input type="text" id="numero_serie_teste" name="numero_serie_teste" value="<?php echo esc_attr($numero_serie_teste); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="codigo_filial_teste">Código da Filial Teste</label></th>
+                    <td><input type="text" id="codigo_filial_teste" name="codigo_filial_teste" value="<?php echo esc_attr($codigo_filial_teste); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="url_api">URL da API</label></th>
+                    <td><input type="text" id="url_api" name="url_api" value="<?php echo esc_attr($url_api); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="porta">Porta</label></th>
+                    <td><input type="text" id="porta" name="porta" value="<?php echo esc_attr($porta); ?>"></td>
+                </tr>
+                <tr>
+                    <th scope="row"><label for="senha">Senha</label></th>
+                    <td><input type="password" id="senha" name="senha" value="<?php echo esc_attr($senha); ?>"></td>
+                </tr>
+            </table>
+            <?php submit_button('Salvar', 'primary', 'submit', true); ?>
+        </form>
+    </div>
+    <?php
+}
+
+// Adiciona o endpoint personalizado para receber as informações do Shop Control 9 via JSON
+add_action('rest_api_init', function () {
+    register_rest_route('meu-plugin-shop-control9/v1', '/dados-shop-control9', array(
+        'methods' => 'POST',
+        'callback' => 'meu_plugin_shop_control9_processar_dados',
+        'permission_callback' => function () {
+            return current_user_can('manage_options');
+        }
+    ));
+});
