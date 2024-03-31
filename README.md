@@ -1,7 +1,14 @@
 # Shop 9 Integration
 
-O plugin Shop 9 Integration permite integrar o Shop 9 com a sua loja WordPress, facilitando a sincronização de produtos e clientes entre as duas plataformas. Este plugin permite configurar o clientID e clientSecret pelo painel administrativo do WordPress, proporcionando uma integração rápida e segura.
+O plugin Shop 9 Integration permite integrar o Shop 9 com a sua loja WordPress, facilitando a sincronização de produtos e clientes entre as duas plataformas. Este plugin permite configurar o clientID e clientSecret pelo painel administrativo do WordPress, proporcionando uma integração rápida e segura. 
+Com este plugin, é possível configurar detalhes de conexão com a API do Shop 9, ativar o plugin com credenciais específicas e ajustar configurações para o ambiente de teste.
 
+## Features
+
+- **Ativação do Plugin**: Permite a ativação do plugin usando um número de série e código da filial, garantindo uma integração segura e personalizada para cada instalação.
+- **Configurações Avançadas**: Configurações detalhadas disponíveis para ajustar a integração em um ambiente de teste, incluindo URL do serviço, porta e senha.
+- **Sistema de Abas no Painel Administrativo**: Facilita a navegação entre a ativação do plugin e configurações avançadas, proporcionando uma experiência de usuário aprimorada.
+  
 ## Instalação
 
 1. Faça o download do plugin ZIP através do [repositório do GitHub](https://github.com/Cbih939/shop9-integration/releases/latest).
@@ -10,15 +17,16 @@ O plugin Shop 9 Integration permite integrar o Shop 9 com a sua loja WordPress, 
 4. Clique em "Fazer upload do plugin" e selecione o arquivo ZIP que você baixou.
 5. Clique em "Instalar agora" e, em seguida, em "Ativar plugin".
 
-## Configuração
+### Configurações
 
-Após a instalação e ativação do plugin, siga estas etapas para configurar a integração com o Shop 9:
+Na aba "Configurações", você pode configurar detalhes para o ambiente de teste, incluindo:
 
-1. No painel administrativo do WordPress, vá para "Shop 9 Integration".
-2. Preencha os campos "Client ID" e "Client Secret" com as credenciais fornecidas pelo Shop 9.
-3. Preencha os campos "Número de Série (Teste)" e "Código da Filial (Teste)" com as credenciais de teste fornecidas pela IdealSoft.
-4. Preencha o campo "URL da API do Shop 9" com a URL da API do Shop 9 fornecida pela IdealSoft.
-5. Clique em "Salvar Configurações" para aplicar as alterações.
+- **URL do Serviço**: URL para conexão com a API do Shop 9.
+- **Porta**: Porta utilizada pela API.
+- **Senha**: Senha para autenticação com a API.
+- **Número de Série para Homologação**: Número de série utilizado para testes.
+- **Código da Filial para Homologação**: Código da filial utilizado para testes.
+Essas configurações permitem testar a integração em um ambiente controlado antes de colocá-la em produção.
 
 ## Funcionalidades
 
